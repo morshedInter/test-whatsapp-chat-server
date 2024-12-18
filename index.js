@@ -1,6 +1,7 @@
 const express = require("express");
 const axios = require("axios");
 const fs = require("fs");
+const path = require("path");
 const cron = require("node-cron");
 require("dotenv").config();
 const cors = require("cors");
@@ -212,6 +213,7 @@ app.get("/whatsapp-webhook", (req, res) => {
 // });
 
 // Webhook Route
+// Webhook Route
 app.post("/whatsapp-webhook", async (req, res) => {
   try {
     const { entry } = req.body;
@@ -243,13 +245,14 @@ app.post("/whatsapp-webhook", async (req, res) => {
           .then((response) => response.data);
 
         // Step 3: Save the media file locally
-        const folderPath = `./media/user_${userNumber}`;
+        const folderPath = path.join(__dirname, "media", `user_${userNumber}`);
         if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
 
-        const filename = `${folderPath}/media_${Date.now()}.${mediaType}`;
-        fs.writeFileSync(filename, mediaBuffer);
+        const filename = `media_${Date.now()}.${mediaType}`;
+        const filePath = path.join(folderPath, filename);
+        fs.writeFileSync(filePath, mediaBuffer);
 
-        mediaUrl = filename; // Store the file path
+        mediaUrl = filePath; // Store the file path
       }
 
       // Fetch or create a chat document for the user
@@ -275,8 +278,10 @@ app.post("/whatsapp-webhook", async (req, res) => {
       // Emit the new message via Socket.IO
       io.emit("newMessage", { user: userNumber, message: newMessage });
 
+      console.log("Message saved successfully:", newMessage);
       res.sendStatus(200);
     } else {
+      console.log("No messages received");
       res.sendStatus(200);
     }
   } catch (error) {
