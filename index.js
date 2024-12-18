@@ -1,8 +1,6 @@
 const express = require("express");
 const axios = require("axios");
 const cron = require("node-cron");
-const fs = require("fs");
-const path = require("path");
 require("dotenv").config();
 const cors = require("cors");
 const bodyParser = require("body-parser");
@@ -161,57 +159,6 @@ app.get("/whatsapp-webhook", (req, res) => {
 
 // WhatsApp Webhook Route to Handle Incoming Messages and save receive sms to database
 
-// app.post("/whatsapp-webhook", async (req, res) => {
-//   try {
-//     const { entry } = req.body;
-//     const changes = entry[0].changes[0];
-//     const messages = changes.value.messages;
-
-//     if (messages && messages.length > 0) {
-//       const messageData = messages[0];
-//       const userNumber = messageData.from;
-//       let text = messageData.text?.body || "";
-//       let mediaUrl = null;
-//       let mediaType = null;
-
-//       if (messageData.type === "image" || messageData.type === "video" || messageData.type === "audio") {
-//         const mediaId = messageData[messageData.type].id;
-//         mediaUrl = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
-//           headers: { Authorization: `Bearer ${TOKEN}` },
-//         });
-//         mediaType = messageData.type;
-//       }
-
-//       let chat = await Chat.findOne({ user: userNumber });
-
-//       if (!chat) {
-//         chat = new Chat({ user: userNumber, messages: [] });
-//       }
-
-//       const newMessage = {
-//         sender: "user",
-//         text: text,
-//         mediaUrl: mediaUrl ? mediaUrl.data.url : null,
-//         mediaType: mediaType,
-//         timestamp: new Date(),
-//       };
-
-//       chat.messages.push(newMessage);
-//       await chat.save();
-
-//       // Emit the new message via Socket.IO
-//       io.emit("newMessage", { user: userNumber, message: newMessage });
-
-//       res.sendStatus(200);
-//     } else {
-//       res.sendStatus(200);
-//     }
-//   } catch (error) {
-//     console.error("Error processing WhatsApp webhook:", error);
-//     res.sendStatus(500);
-//   }
-// });
-
 app.post("/whatsapp-webhook", async (req, res) => {
   try {
     const { entry } = req.body;
@@ -224,47 +171,15 @@ app.post("/whatsapp-webhook", async (req, res) => {
       let text = messageData.text?.body || "";
       let mediaUrl = null;
       let mediaType = null;
-      let mediaFileName = null;
 
       if (messageData.type === "image" || messageData.type === "video" || messageData.type === "audio") {
         const mediaId = messageData[messageData.type].id;
-
-        // Step 1: Get media URL
-        const mediaResponse = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
+        mediaUrl = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
           headers: { Authorization: `Bearer ${TOKEN}` },
         });
-        mediaUrl = mediaResponse.data.url;
         mediaType = messageData.type;
-
-        // Step 2: Download the media
-        const mediaPath = path.join(__dirname, "media"); // Directory to store media
-        if (!fs.existsSync(mediaPath)) {
-          fs.mkdirSync(mediaPath); // Create directory if not exists
-        }
-        mediaFileName = `${mediaId}.${mediaType}`; // Generate a unique file name
-        const filePath = path.join(mediaPath, mediaFileName);
-
-        const mediaFile = await axios({
-          url: mediaUrl,
-          method: "GET",
-          responseType: "stream",
-          headers: {
-            Authorization: `Bearer ${TOKEN}`,
-          },
-        });
-
-        // Save media to file
-        const writer = fs.createWriteStream(filePath);
-        mediaFile.data.pipe(writer);
-        await new Promise((resolve, reject) => {
-          writer.on("finish", resolve);
-          writer.on("error", reject);
-        });
-
-        console.log(`Media downloaded: ${filePath}`);
       }
 
-      // Step 3: Save message to database
       let chat = await Chat.findOne({ user: userNumber });
 
       if (!chat) {
@@ -274,7 +189,7 @@ app.post("/whatsapp-webhook", async (req, res) => {
       const newMessage = {
         sender: "user",
         text: text,
-        mediaUrl: mediaFileName ? `/media/${mediaFileName}` : null, // Save relative path to database
+        mediaUrl: mediaUrl ? mediaUrl.data.url : null,
         mediaType: mediaType,
         timestamp: new Date(),
       };
