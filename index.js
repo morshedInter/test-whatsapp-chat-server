@@ -236,7 +236,7 @@ app.post("/whatsapp-webhook", async (req, res) => {
           headers: { Authorization: `Bearer ${TOKEN}` },
         });
 
-        const downloadUrl = mediaResponse.data.url;
+        const downloadUrl = mediaResponse;
         mediaType = messageData.type;
 
         // Step 2: Download the media file as a buffer
