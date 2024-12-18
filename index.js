@@ -7,8 +7,6 @@ const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const http = require("http"); // using this for http server
 const { Server } = require("socket.io"); // using this for socket.io server
-const fs = require("fs");
-const path = require("path");
 // socket.io
 
 // Initialize Express, HTTP, and Socket.io server
@@ -161,60 +159,6 @@ app.get("/whatsapp-webhook", (req, res) => {
 
 // WhatsApp Webhook Route to Handle Incoming Messages and save receive sms to database
 
-// app.post("/whatsapp-webhook", async (req, res) => {
-//   try {
-//     const { entry } = req.body;
-//     const changes = entry[0].changes[0];
-//     const messages = changes.value.messages;
-
-//     if (messages && messages.length > 0) {
-//       const messageData = messages[0];
-//       const userNumber = messageData.from;
-//       let text = messageData.text?.body || "";
-//       let mediaUrl = null;
-//       let mediaType = null;
-
-//       if (messageData.type === "image" || messageData.type === "video" || messageData.type === "audio") {
-//         const mediaId = messageData[messageData.type].id;
-//         const mediaResponse = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
-//           headers: { Authorization: `Bearer ${TOKEN}` },
-//         });
-//         const mediaContentUrl = mediaResponse.data.url;
-//         const encodedUrl = `${mediaContentUrl}?access_token=${TOKEN}`;
-//         mediaUrl = encodedUrl;
-//         mediaType = messageData.type;
-//       }
-
-//       let chat = await Chat.findOne({ user: userNumber });
-
-//       if (!chat) {
-//         chat = new Chat({ user: userNumber, messages: [] });
-//       }
-
-//       const newMessage = {
-//         sender: "user",
-//         text: text,
-//         mediaUrl: mediaUrl ? mediaUrl.data.url : null,
-//         mediaType: mediaType,
-//         timestamp: new Date(),
-//       };
-
-//       chat.messages.push(newMessage);
-//       await chat.save();
-
-//       // Emit the new message via Socket.IO
-//       io.emit("newMessage", { user: userNumber, message: newMessage });
-
-//       res.sendStatus(200);
-//     } else {
-//       res.sendStatus(200);
-//     }
-//   } catch (error) {
-//     console.error("Error processing WhatsApp webhook:", error);
-//     res.sendStatus(500);
-//   }
-// });
-
 app.post("/whatsapp-webhook", async (req, res) => {
   try {
     const { entry } = req.body;
@@ -228,39 +172,14 @@ app.post("/whatsapp-webhook", async (req, res) => {
       let mediaUrl = null;
       let mediaType = null;
 
-      if (["image", "video", "audio"].includes(messageData.type)) {
+      if (messageData.type === "image" || messageData.type === "video" || messageData.type === "audio") {
         const mediaId = messageData[messageData.type].id;
-
-        // Fetch media URL
-        const mediaResponse = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
+        mediaUrl = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
           headers: { Authorization: `Bearer ${TOKEN}` },
         });
-
-        // Media URL
-        const mediaDownloadUrl = mediaResponse.data;
         mediaType = messageData.type;
-
-        // Download the media file
-        const mediaFileName = `${mediaId}.${mediaType === "image" ? "jpg" : mediaType}`;
-        const mediaFilePath = path.join(__dirname, "media", mediaFileName);
-
-        const mediaDownload = await axios.get(mediaDownloadUrl, {
-          headers: { Authorization: `Bearer ${TOKEN}` },
-          responseType: "stream",
-        });
-
-        // Save file locally
-        await new Promise((resolve, reject) => {
-          const writeStream = fs.createWriteStream(mediaFilePath);
-          mediaDownload.data.pipe(writeStream);
-          writeStream.on("finish", resolve);
-          writeStream.on("error", reject);
-        });
-
-        mediaUrl = `/media/${mediaFileName}`; // URL to access the media file
       }
 
-      // Save message to MongoDB
       let chat = await Chat.findOne({ user: userNumber });
 
       if (!chat) {
@@ -270,7 +189,7 @@ app.post("/whatsapp-webhook", async (req, res) => {
       const newMessage = {
         sender: "user",
         text: text,
-        mediaUrl: mediaUrl,
+        mediaUrl: mediaUrl ? mediaUrl.data.url : null,
         mediaType: mediaType,
         timestamp: new Date(),
       };
@@ -290,8 +209,5 @@ app.post("/whatsapp-webhook", async (req, res) => {
     res.sendStatus(500);
   }
 });
-
-// Serve media files statically
-app.use("/media", express.static(path.join(__dirname, "media")));
 
 server.listen(3000, () => console.log("Server running on port 3000"));
