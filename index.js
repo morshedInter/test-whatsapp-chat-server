@@ -137,7 +137,7 @@ io.on("connection", (socket) => {
         console.error("Error fetching chat history:", error);
       }
     });
-  } catch (error) {}
+  } catch (error) { }
 });
 
 // For Home route to ensure server is running
@@ -215,6 +215,7 @@ app.get("/whatsapp-webhook", (req, res) => {
 // Webhook Route
 // Webhook Route
 app.post("/whatsapp-webhook", async (req, res) => {
+  console.log(JSON.stringify(req.body, null, 2));
   try {
     const { entry } = req.body;
     const changes = entry[0].changes[0];
@@ -236,13 +237,12 @@ app.post("/whatsapp-webhook", async (req, res) => {
           headers: { Authorization: `Bearer ${TOKEN}` },
         });
 
-        const downloadUrl = mediaResponse;
+        const downloadUrl = mediaResponse.data.url;
         mediaType = messageData.type;
 
         // Step 2: Download the media file as a buffer
         const mediaBuffer = await axios
-          .get(downloadUrl, { responseType: "arraybuffer" })
-          .then((response) => response.data);
+          .get(downloadUrl, { responseType: "arraybuffer", headers: { Authorization: `Bearer ${TOKEN}` }, })
 
         // Step 3: Save the media file locally
         const folderPath = path.join(__dirname, "media", `user_${userNumber}`);
@@ -250,7 +250,7 @@ app.post("/whatsapp-webhook", async (req, res) => {
 
         const filename = `media_${Date.now()}.${mediaType}`;
         const filePath = path.join(folderPath, filename);
-        fs.writeFileSync(filePath, mediaBuffer);
+        fs.writeFileSync(filePath, mediaBuffer.data);
 
         mediaUrl = filePath; // Store the file path
       }
