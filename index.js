@@ -51,7 +51,7 @@ const Chat = mongoose.model("chat", chatSchema);
 
 const WHATSAPP_API_URL = process.env.WHATSAPP_BUSINESS_API;
 
-let TOKEN = "EAAWoMWMy5S4BO3yyubnV8Y19zgn13EonKNk2yYRLZAJzZCzYf2zVbOXKaWvlbZCcdWlkiBV8VJSvSB4fdtuJZAjveDAJycG4EfZBW6vMy8D8HGVQ3lDg8sbcxV5Cu3R1YE9ng9ZBhmUmI955GjTahlavifTfIdHkHssI19mmeSPn5aoAH85IKp89s3lZAF2TZBPixjL3IZCJW63SNP0MVPxiwsVqu3J8ZD";
+let TOKEN = "EAAWoMWMy5S4BO0pm7bqigGJMsI0jeD30DSdzh1QZBnG6aZAccizJN4hYjLcEiFXYXp06LiZBXLDnvcLPpdZBsJoEC536kQ8l4xQHGa2gwpSneDXxZA4dkiPxaC0ZAm9NK7cEYW4z9ZAuacVhPrMjIiZCcIQYSJKEwxe9XYBSrJEzIm9MVT6XZCvhmQYypq5y9ZCAdhmCVFOyY5e3UkZAeVaBervDnq4TVewCgX4LlgMsM4ZD";
 
 // Function to refresh the access token -> work on it after implement business api
 
