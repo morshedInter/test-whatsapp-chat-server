@@ -159,6 +159,58 @@ app.get("/whatsapp-webhook", (req, res) => {
 
 // WhatsApp Webhook Route to Handle Incoming Messages and save receive sms to database
 
+// app.post("/whatsapp-webhook", async (req, res) => {
+//   try {
+//     const { entry } = req.body;
+//     const changes = entry[0].changes[0];
+//     const messages = changes.value.messages;
+
+//     if (messages && messages.length > 0) {
+//       const messageData = messages[0];
+//       const userNumber = messageData.from;
+//       let text = messageData.text?.body || "";
+//       let mediaUrl = null;
+//       let mediaType = null;
+
+//       if (messageData.type === "image" || messageData.type === "video" || messageData.type === "audio") {
+//         const mediaId = messageData[messageData.type].id;
+//         mediaUrl = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
+//           headers: { Authorization: `Bearer ${TOKEN}` },
+//         });
+//         mediaType = messageData.type;
+//       }
+
+//       let chat = await Chat.findOne({ user: userNumber });
+
+//       if (!chat) {
+//         chat = new Chat({ user: userNumber, messages: [] });
+//       }
+
+//       const newMessage = {
+//         sender: "user",
+//         text: text,
+//         mediaUrl: mediaUrl ? mediaUrl.data.url : null,
+//         mediaType: mediaType,
+//         timestamp: new Date(),
+//       };
+
+//       chat.messages.push(newMessage);
+//       await chat.save();
+
+//       // Emit the new message via Socket.IO
+//       io.emit("newMessage", { user: userNumber, message: newMessage });
+
+//       res.sendStatus(200);
+//     } else {
+//       res.sendStatus(200);
+//     }
+//   } catch (error) {
+//     console.error("Error processing WhatsApp webhook:", error);
+//     res.sendStatus(500);
+//   }
+// });
+
+// Webhook Route
 app.post("/whatsapp-webhook", async (req, res) => {
   try {
     const { entry } = req.body;
@@ -172,28 +224,50 @@ app.post("/whatsapp-webhook", async (req, res) => {
       let mediaUrl = null;
       let mediaType = null;
 
-      if (messageData.type === "image" || messageData.type === "video" || messageData.type === "audio") {
+      // Media Handling
+      if (["image", "video", "audio"].includes(messageData.type)) {
         const mediaId = messageData[messageData.type].id;
-        mediaUrl = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
+
+        // Step 1: Get the media URL from WhatsApp API
+        const mediaResponse = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
           headers: { Authorization: `Bearer ${TOKEN}` },
         });
+
+        const downloadUrl = mediaResponse.data.url;
         mediaType = messageData.type;
+
+        // Step 2: Download the media file as a buffer
+        const mediaBuffer = await axios
+          .get(downloadUrl, { responseType: "arraybuffer" })
+          .then((response) => response.data);
+
+        // Step 3: Save the media file locally
+        const folderPath = `./media/user_${userNumber}`;
+        if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
+
+        const filename = `${folderPath}/media_${Date.now()}.${mediaType}`;
+        fs.writeFileSync(filename, mediaBuffer);
+
+        mediaUrl = filename; // Store the file path
       }
 
+      // Fetch or create a chat document for the user
       let chat = await Chat.findOne({ user: userNumber });
 
       if (!chat) {
         chat = new Chat({ user: userNumber, messages: [] });
       }
 
+      // Construct the new message object
       const newMessage = {
         sender: "user",
         text: text,
-        mediaUrl: mediaUrl ? mediaUrl.data.url : null,
+        mediaUrl: mediaUrl, // Store the file path
         mediaType: mediaType,
         timestamp: new Date(),
       };
 
+      // Add the new message to the chat
       chat.messages.push(newMessage);
       await chat.save();
 
