@@ -237,7 +237,7 @@ app.post("/whatsapp-webhook", async (req, res) => {
         });
 
         // Media URL
-        const mediaDownloadUrl = mediaResponse.data.url;
+        const mediaDownloadUrl = mediaResponse.data;
         mediaType = messageData.type;
 
         // Download the media file
