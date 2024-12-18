@@ -1,7 +1,5 @@
 const express = require("express");
 const axios = require("axios");
-const fs = require("fs");
-const path = require("path");
 const cron = require("node-cron");
 require("dotenv").config();
 const cors = require("cors");
@@ -137,7 +135,7 @@ io.on("connection", (socket) => {
         console.error("Error fetching chat history:", error);
       }
     });
-  } catch (error) { }
+  } catch (error) {}
 });
 
 // For Home route to ensure server is running
@@ -212,10 +210,7 @@ app.get("/whatsapp-webhook", (req, res) => {
 //   }
 // });
 
-// Webhook Route
-// Webhook Route
 app.post("/whatsapp-webhook", async (req, res) => {
-  console.log(JSON.stringify(req.body, null, 2));
   try {
     const { entry } = req.body;
     const changes = entry[0].changes[0];
@@ -227,61 +222,69 @@ app.post("/whatsapp-webhook", async (req, res) => {
       let text = messageData.text?.body || "";
       let mediaUrl = null;
       let mediaType = null;
+      let mediaFileName = null;
 
-      // Media Handling
-      if (["image", "video", "audio"].includes(messageData.type)) {
+      if (messageData.type === "image" || messageData.type === "video" || messageData.type === "audio") {
         const mediaId = messageData[messageData.type].id;
 
-        // Step 1: Get the media URL from WhatsApp API
+        // Step 1: Get media URL
         const mediaResponse = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
           headers: { Authorization: `Bearer ${TOKEN}` },
         });
-
-        const downloadUrl = mediaResponse.data.url;
+        mediaUrl = mediaResponse.data.url;
         mediaType = messageData.type;
 
-        // Step 2: Download the media file as a buffer
-        const mediaBuffer = await axios
-          .get(downloadUrl, { responseType: "arraybuffer", headers: { Authorization: `Bearer ${TOKEN}` }, })
+        // Step 2: Download the media
+        const mediaPath = path.join(__dirname, "media"); // Directory to store media
+        if (!fs.existsSync(mediaPath)) {
+          fs.mkdirSync(mediaPath); // Create directory if not exists
+        }
+        mediaFileName = `${mediaId}.${mediaType}`; // Generate a unique file name
+        const filePath = path.join(mediaPath, mediaFileName);
 
-        // Step 3: Save the media file locally
-        const folderPath = path.join(__dirname, "media", `user_${userNumber}`);
-        if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
+        const mediaFile = await axios({
+          url: mediaUrl,
+          method: "GET",
+          responseType: "stream",
+          headers: {
+            Authorization: `Bearer ${TOKEN}`,
+          },
+        });
 
-        const filename = `media_${Date.now()}.${mediaType}`;
-        const filePath = path.join(folderPath, filename);
-        fs.writeFileSync(filePath, mediaBuffer.data);
+        // Save media to file
+        const writer = fs.createWriteStream(filePath);
+        mediaFile.data.pipe(writer);
+        await new Promise((resolve, reject) => {
+          writer.on("finish", resolve);
+          writer.on("error", reject);
+        });
 
-        mediaUrl = filePath; // Store the file path
+        console.log(`Media downloaded: ${filePath}`);
       }
 
-      // Fetch or create a chat document for the user
+      // Step 3: Save message to database
       let chat = await Chat.findOne({ user: userNumber });
 
       if (!chat) {
         chat = new Chat({ user: userNumber, messages: [] });
       }
 
-      // Construct the new message object
       const newMessage = {
         sender: "user",
         text: text,
-        mediaUrl: mediaUrl, // Store the file path
+        mediaUrl: mediaFileName ? `/media/${mediaFileName}` : null, // Save relative path to database
         mediaType: mediaType,
         timestamp: new Date(),
       };
 
-      // Add the new message to the chat
       chat.messages.push(newMessage);
       await chat.save();
 
       // Emit the new message via Socket.IO
       io.emit("newMessage", { user: userNumber, message: newMessage });
 
-      console.log("Message saved successfully:", newMessage);
       res.sendStatus(200);
     } else {
-      console.log("No messages received");
       res.sendStatus(200);
     }
   } catch (error) {
