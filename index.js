@@ -40,7 +40,7 @@ const chatSchema = new mongoose.Schema({
     {
       sender: { type: String, require: true },
       text: { type: String, default: "" },
-      mediaUrl: { type: String, default: null }, // URL for the media
+      mediaUrl: { type: String, default: null },
       mediaType: { type: String, default: null }, // Type of the media (image, video, audio)
       timestamp: { type: Date, default: Date.now },
     },
