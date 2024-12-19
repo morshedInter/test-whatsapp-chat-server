@@ -160,6 +160,9 @@ app.get("/whatsapp-webhook", (req, res) => {
 // WhatsApp Webhook Route to Handle Incoming Messages and save receive sms to database
 
 app.post("/whatsapp-webhook", async (req, res) => {
+  console.log(req.body);
+  res.sendStatus(200);
+
   try {
     const { entry } = req.body;
     const changes = entry[0].changes[0];
@@ -179,9 +182,11 @@ app.post("/whatsapp-webhook", async (req, res) => {
         });
 
         const downloadMediaUrl = mediaResponse.data.url;
-        const mediaData = await axios.get(downloadMediaUrl, { responseType: "stream", headers: { Authorization: `Bearer ${TOKEN}` } });
+        const mediaData = await axios.get(downloadMediaUrl, { responseType: "arraybuffer", headers: { Authorization: `Bearer ${TOKEN}` } });
 
-        mediaUrl = mediaData;
+        mediaUrl = `data:${mediaData.headers["content-type"]};base64,${Buffer.from(mediaData.data).toString("base64")}`;
+        console.log(mediaUrl);
+
         mediaType = messageData.type;
       }
 
