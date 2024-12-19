@@ -185,7 +185,6 @@ app.post("/whatsapp-webhook", async (req, res) => {
         const mediaData = await axios.get(downloadMediaUrl, { responseType: "arraybuffer", headers: { Authorization: `Bearer ${TOKEN}` } });
 
         mediaUrl = `data:${mediaData.headers["content-type"]};base64,${Buffer.from(mediaData.data).toString("base64")}`;
-        console.log(mediaUrl);
 
         mediaType = messageData.type;
       }
