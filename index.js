@@ -174,9 +174,14 @@ app.post("/whatsapp-webhook", async (req, res) => {
 
       if (messageData.type === "image" || messageData.type === "video" || messageData.type === "audio") {
         const mediaId = messageData[messageData.type].id;
-        mediaUrl = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
+        const mediaResponse = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
           headers: { Authorization: `Bearer ${TOKEN}` },
         });
+
+        const downloadMediaUrl = mediaResponse.data.url;
+        const mediaData = await axios.get(downloadMediaUrl, { responseType: "stream", headers: { Authorization: `Bearer ${TOKEN}` } });
+
+        mediaUrl = mediaData;
         mediaType = messageData.type;
       }
 
@@ -189,7 +194,7 @@ app.post("/whatsapp-webhook", async (req, res) => {
       const newMessage = {
         sender: "user",
         text: text,
-        mediaUrl: mediaUrl ? mediaUrl.data.url : null,
+        mediaUrl: mediaUrl || null,
         mediaType: mediaType,
         timestamp: new Date(),
       };
