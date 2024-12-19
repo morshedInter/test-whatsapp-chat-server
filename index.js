@@ -160,9 +160,6 @@ app.get("/whatsapp-webhook", (req, res) => {
 // WhatsApp Webhook Route to Handle Incoming Messages and save receive sms to database
 
 app.post("/whatsapp-webhook", async (req, res) => {
-  console.log(req.body);
-  res.sendStatus(200);
-
   try {
     const { entry } = req.body;
     const changes = entry[0].changes[0];
@@ -208,8 +205,6 @@ app.post("/whatsapp-webhook", async (req, res) => {
 
       // Emit the new message via Socket.IO
       io.emit("newMessage", { user: userNumber, message: newMessage });
-
-      res.sendStatus(200);
     } else {
       res.sendStatus(200);
     }
